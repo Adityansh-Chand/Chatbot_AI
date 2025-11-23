@@ -36,6 +36,7 @@ dependencies:
   lottie:
   image_picker:
   flutter_launcher_icons:
+  meta:
 
 
 flutter_launcher_icons:
@@ -58,7 +59,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,6 +76,7 @@ flutter:
   assets:
     - assets/images/earth.jpg
     - assets/loader.json
+    - assets/hr_knowledge_base.json
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

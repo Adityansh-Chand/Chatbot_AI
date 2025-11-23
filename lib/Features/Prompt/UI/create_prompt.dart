@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:artificial_intelegence/Model/chat_message_model.dart';
+import 'package:artificial_intelegence/Model/leave_balance_model.dart';
 import 'package:artificial_intelegence/bloc/chat_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,9 +35,14 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
 
   @override
   void didChangeMetrics() {
-    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    super.didChangeMetrics();
+    final viewInsets = PlatformDispatcher.instance.views.first.viewInsets;
+    final bottomInsetPhysical = viewInsets.bottom;
+    final devicePixelRatio =
+        PlatformDispatcher.instance.views.first.devicePixelRatio;
+    final bottomInsetLogical = bottomInsetPhysical / devicePixelRatio;
     setState(() {
-      _isKeyboardVisible = bottomInset > 0;
+      _isKeyboardVisible = bottomInsetLogical > 0;
     });
   }
 
@@ -56,28 +62,22 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: BlocConsumer<ChatBloc, ChatState>(
-        bloc: chatBloc,
-        listener: (context, state) {
-          if (state is ChatSuccessState) {
-            _scrollToBottom();
-          }
-        },
-        builder: (context, state) {
-          switch (state.runtimeType) {
-            case ChatSuccessState:
-              List<ChatMessageModel> message =
-                  (state as ChatSuccessState).messages;
+          bloc: chatBloc,
+          listener: (context, state) {
+            if (state is ChatSuccessState) {
+              _scrollToBottom();
+            }
+          },
+          builder: (context, state) {
+            if (state is ChatSuccessState) {
+              // The list is of type AppMessageModel
+              List<AppMessageModel> message = state.messages;
+
               return Stack(
                 children: [
-                  Container(
+                  SizedBox(
                     height: MediaQuery.of(context).size.height,
                     width: MediaQuery.of(context).size.width,
-                    decoration: const BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage('assets/images/chatbot_ui_bg.png'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
                   ),
                   BackdropFilter(
                     filter: ImageFilter.blur(
@@ -85,8 +85,8 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                       sigmaY: _isKeyboardVisible ? 6.0 : 2.0,
                     ),
                     child: Container(
-                      color: Colors.black
-                          .withOpacity(_isKeyboardVisible ? 0.4 : 0.2),
+                      color: Colors.black.withAlpha(
+                          (255 * (_isKeyboardVisible ? 0.4 : 0.2)).toInt()),
                     ),
                   ),
                   Column(
@@ -97,7 +97,7 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            "Q-Aura.AI",
+                            "ADAAS",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 26,
@@ -114,38 +114,47 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
                           itemBuilder: (context, index) {
-                            bool isUserMessage = message[index].role == 'user';
-                            return Align(
-                              alignment: isUserMessage
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Container(
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width * 0.7,
-                                ),
-                                margin: const EdgeInsets.only(bottom: 10),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  color: isUserMessage
-                                      ? Theme.of(context)
-                                          .primaryColor
-                                          .withOpacity(0.9)
-                                      : Colors.black.withOpacity(0.6),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12, horizontal: 16),
-                                child: Text(
-                                  message[index].role,
-                                  style: TextStyle(
+                            final msg = message[index];
+                            bool isUserMessage = msg.role == 'user';
+
+                            if (msg.type == MessageType.table) {
+                              // Render the table widget
+                              return _buildLeaveTable(msg.leaveBalance!);
+                            } else {
+                              // Render the text bubble
+                              return Align(
+                                alignment: isUserMessage
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Container(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width * 0.7,
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
                                     color: isUserMessage
-                                        ? Colors.black
-                                        : Colors.white,
-                                    fontSize: 16,
+                                        ? Theme.of(context)
+                                            .primaryColor
+                                            .withAlpha((255 * 0.9).toInt())
+                                        : Colors.black
+                                            .withAlpha((255 * 0.6).toInt()),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 12, horizontal: 16),
+                                  child: Text(
+                                    msg.text ?? "",
+                                    style: TextStyle(
+                                      color: isUserMessage
+                                          ? Colors.black
+                                          : Colors.white,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
+                              );
+                            }
                           },
                         ),
                       ),
@@ -182,7 +191,7 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                                 maxLines: 3,
                                 minLines: 1,
                                 decoration: InputDecoration(
-                                  hintText: "Ask Artificial Intelligence",
+                                  hintText: "Ask HR (e.g., 'my leave balance')",
                                   hintStyle: TextStyle(
                                       color: Theme.of(context).primaryColor),
                                   filled: true,
@@ -210,14 +219,23 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                                 child: IconButton(
                                   icon: const Icon(Icons.send,
                                       color: Colors.white),
-                                  onPressed: () {
-                                    chatBloc
-                                        .add(ChatGenerateNewTextMessageEvent(
-                                      inputMessage: textEditingController.text,
-                                    ));
-                                    textEditingController.clear();
-                                    _scrollToBottom();
-                                  },
+                                  // Check if the BLoC is already working.
+                                  // If it is, 'onPressed' will be null, disabling the button.
+                                  onPressed: chatBloc.generating
+                                      ? null
+                                      : () {
+                                          // Only send an event if not already generating
+                                          if (textEditingController
+                                              .text.isNotEmpty) {
+                                            chatBloc.add(
+                                                ChatGenerateNewTextMessageEvent(
+                                              inputMessage:
+                                                  textEditingController.text,
+                                            ));
+                                            textEditingController.clear();
+                                            _scrollToBottom();
+                                          }
+                                        },
                                 ),
                               ),
                             ),
@@ -228,10 +246,77 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                   ),
                 ],
               );
-            default:
-              return const Center(child: CircularProgressIndicator());
-          }
-        },
+            }
+            // This is the default case (handles ChatInitial)
+            return const Center(child: CircularProgressIndicator());
+          }),
+    );
+  }
+
+  // 6. --- ADD THIS NEW HELPER METHOD INSIDE OUR _CreatePromptScreenState ---
+
+  /// Builds a custom table widget for displaying leave balance.
+  Widget _buildLeaveTable(LeaveBalanceModel balance) {
+    const textStyle = TextStyle(color: Colors.white, fontSize: 14);
+
+    return Align(
+      alignment: Alignment.centerLeft, // Keep model messages to the left
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth:
+              MediaQuery.of(context).size.width * 0.85, // A bit wider for table
+        ),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          // Match the model bubble color
+          color: Colors.black.withAlpha((255 * 0.6).toInt()),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Your Leave Balance:",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            DataTable(
+              headingRowColor:
+                  WidgetStateProperty.all(Colors.white.withAlpha(20)),
+              border: TableBorder.all(
+                width: 1.0,
+                color: Colors.white54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              columns: const [
+                DataColumn(label: Text('Leave Type', style: textStyle)),
+                DataColumn(
+                    label: Text('Balance', style: textStyle), numeric: true),
+              ],
+              rows: [
+                DataRow(cells: [
+                  DataCell(Text('Casual Leave', style: textStyle)),
+                  DataCell(
+                      Text(balance.casualLeave.toString(), style: textStyle)),
+                ]),
+                DataRow(cells: [
+                  DataCell(Text('Sick Leave', style: textStyle)),
+                  DataCell(
+                      Text(balance.sickLeave.toString(), style: textStyle)),
+                ]),
+                DataRow(cells: [
+                  DataCell(Text('Annual Leave', style: textStyle)),
+                  DataCell(
+                      Text(balance.annualLeave.toString(), style: textStyle)),
+                ]),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
