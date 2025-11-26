@@ -49,7 +49,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       // ignore: avoid_print
       print("BLoC: Matched intent 'Leave Balance'. Calling LeaveApiRepo...");
       LeaveBalanceModel? balance =
-          await LeaveApiRepo.fetchLeaveBalance("456"); // Pass a user ID
+          await LeaveApiRepo.fetchLeaveBalance("1001"); // Pass a user ID
 
       if (balance != null) {
         // Add a 'table' type message

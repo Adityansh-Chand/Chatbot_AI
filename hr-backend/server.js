@@ -1,37 +1,40 @@
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose'); // Import Mongoose
+const LeaveBalance = require('./models/LeaveBalance'); // Import Model
+
 const app = express();
 const port = 3000;
 
-app.use(cors()); // Allow requests from our Flutter app
+// *** CONNECTION STRING ***
+const mongoURI = "mongodb+srv://admin:mn1AC%402004@cluster1.b2m1phr.mongodb.net/?appName=Cluster1";
+
+app.use(cors());
 app.use(express.json());
 
-// Mock Database
-const employeeData = {
-    "123": {
-        casual_leave_balance: 5,
-        sick_leave_balance: 8,
-        annual_leave_balance: 12
-    },
-    "456": {
-        casual_leave_balance: 2,
-        sick_leave_balance: 0,
-        annual_leave_balance: 20
-    }
-};
+// Connect to MongoDB
+mongoose.connect(mongoURI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch(err => console.log(err));
 
-// Define the GET endpoint
-app.get('/leave-balance', (req, res) => {
+// --- ENDPOINT: Get Leave Balance ---
+app.get('/leave-balance', async (req, res) => {
     const employeeId = req.query.employee_id;
-    console.log(`Received request for employee: ${employeeId}`);
+    console.log(`Searching DB for employee: ${employeeId}`);
 
-    if (employeeData[employeeId]) {
-        // Simulate database delay
-        setTimeout(() => {
-            res.json(employeeData[employeeId]);
-        }, 500);
-    } else {
-        res.status(404).json({ error: "Employee not found" });
+    try {
+        // Find the document in the database using the Mongoose model
+        const data = await LeaveBalance.findOne({ employeeId: employeeId });
+
+        if (data) {
+            // Send the data found in MongoDB back to the Flutter app
+            res.json(data);
+        } else {
+            res.status(404).json({ error: "Employee not found in DB" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server Error" });
     }
 });
 
