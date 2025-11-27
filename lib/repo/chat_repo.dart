@@ -82,7 +82,7 @@ class ChatRepo {
 
       Dio dio = Dio();
       final response = await dio.post(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$apiKey',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
         data: {
           "contents": apiMessages.map((e) => e.toMap()).toList(),
           "generationConfig": {
