@@ -158,7 +158,7 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                           },
                         ),
                       ),
-                      if (chatBloc.generating)
+                      if (state.isGenerating)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Row(
@@ -221,7 +221,7 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
                                       color: Colors.white),
                                   // Check if the BLoC is already working.
                                   // If it is, 'onPressed' will be null, disabling the button.
-                                  onPressed: chatBloc.generating
+                                  onPressed: state.isGenerating
                                       ? null
                                       : () {
                                           // Only send an event if not already generating

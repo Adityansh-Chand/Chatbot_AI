@@ -9,7 +9,11 @@ class ChatSuccessState extends ChatState {
   // This list now holds AppMessageModel
   final List<AppMessageModel> messages;
 
+  // ---> Debounce / Loading flag lives in state
+  final bool isGenerating;
+
   ChatSuccessState({
     required this.messages,
+    this.isGenerating = false, // default
   });
 }

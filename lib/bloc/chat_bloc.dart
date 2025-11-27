@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:artificial_intelegence/Model/chat_message_model.dart';
-import 'package:artificial_intelegence/Model/leave_balance_model.dart'; // Import the new model
 import 'package:artificial_intelegence/repo/chat_repo.dart';
 import 'package:artificial_intelegence/repo/leave_api_repo.dart'; // Import the new repo
 import 'package:bloc/bloc.dart';
@@ -11,7 +10,8 @@ part 'chat_state.dart';
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   // 1. State now holds a list of AppMessageModel
-  ChatBloc() : super(ChatSuccessState(messages: const [])) {
+  ChatBloc()
+      : super(ChatSuccessState(messages: const [], isGenerating: false)) {
     // 2. Load the JSON knowledge base when the BLoC is created
     ChatRepo.loadKnowledgeBase();
     on<ChatGenerateNewTextMessageEvent>(chatGenerateNewTextMessageEvent);
@@ -19,11 +19,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   // 3. The BLoC's message list now uses the new UI model
   List<AppMessageModel> messages = [];
-  bool generating = false;
 
   FutureOr<void> chatGenerateNewTextMessageEvent(
       ChatGenerateNewTextMessageEvent event, Emitter<ChatState> emit) async {
-    final String userMessage = event.inputMessage;
+    final userMessage = event.inputMessage.trim();
     if (userMessage.isEmpty) return;
 
     // 4. Add the user's message (as an AppMessageModel)
@@ -32,58 +31,53 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       type: MessageType.text,
       text: userMessage,
     ));
-    // Emit the user's message immediately
-    emit(ChatSuccessState(messages: messages));
-    generating = true;
+    // Emit new messages + set isGenerating = true
+    emit(ChatSuccessState(
+      messages: List.from(messages),
+      isGenerating: true,
+    ));
+
     await Future.delayed(
         const Duration(milliseconds: 100)); // Small delay for UI
 
     // 5. --- INTENT ROUTING LOGIC ---
-    String userTextLower = userMessage.toLowerCase();
-    bool isLeaveBalanceRequest = userTextLower.contains("leave balance") ||
-        userTextLower.contains("my leave") ||
-        userTextLower.contains("leave count");
+    final textLower = userMessage.toLowerCase();
+    final isLeaveBalanceRequest = textLower.contains("leave balance") ||
+        textLower.contains("my leave") ||
+        textLower.contains("leave count");
 
     if (isLeaveBalanceRequest) {
-      // --- INTENT 1: Fetch Leave Balance (REST API) ---
-      // ignore: avoid_print
-      print("BLoC: Matched intent 'Leave Balance'. Calling LeaveApiRepo...");
-      LeaveBalanceModel? balance =
-          await LeaveApiRepo.fetchLeaveBalance("1001"); // Pass a user ID
+      final balance = await LeaveApiRepo.fetchLeaveBalance("1001");
 
       if (balance != null) {
-        // Add a 'table' type message
         messages.add(AppMessageModel(
           role: 'model',
-          type: MessageType.table, // <-- Use the new type
-          leaveBalance: balance, // <-- Attach the data
+          type: MessageType.table,
+          leaveBalance: balance,
         ));
       } else {
-        // Handle API error
         messages.add(AppMessageModel(
           role: 'model',
-          text: "Sorry, I couldn't fetch your leave balance right now.",
+          type: MessageType.text,
+          text: "Sorry, I couldn't fetch your leave balance.",
         ));
       }
     } else {
-      // --- INTENT 2: Policy Question (RAG) ---
-      // ignore: avoid_print
-      print(
-          "BLoC: Matched intent 'Policy Question'. Calling ChatRepo (RAG)...");
-      // The repo will handle finding context and calling Gemini
-      String generatedText = await ChatRepo.chatTextGenerationRepo(messages);
+      final generatedText = await ChatRepo.chatTextGenerationRepo(messages);
 
-      if (generatedText.isNotEmpty) {
-        messages.add(AppMessageModel(role: 'model', text: generatedText));
-      } else {
-        messages.add(AppMessageModel(
-            role: 'model',
-            text: "Sorry, I'm having trouble connecting. Please try again."));
-      }
+      messages.add(AppMessageModel(
+        role: 'model',
+        type: MessageType.text,
+        text: generatedText.isNotEmpty
+            ? generatedText
+            : "Sorry, I'm having trouble connecting.",
+      ));
     }
 
-    // 6. Emit final state (with AI/API response) and stop loading
-    generating = false;
-    emit(ChatSuccessState(messages: messages));
+    // 6. --- Finally emit messages + isGenerating = false ---
+    emit(ChatSuccessState(
+      messages: List.from(messages),
+      isGenerating: false,
+    ));
   }
 }
