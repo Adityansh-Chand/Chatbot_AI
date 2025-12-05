@@ -75,9 +75,16 @@ class _CreatePromptScreenState extends State<CreatePromptScreen>
 
               return Stack(
                 children: [
-                  SizedBox(
+                  Container(
                     height: MediaQuery.of(context).size.height,
                     width: MediaQuery.of(context).size.width,
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/earth.jpg'),
+                        fit: BoxFit
+                            .cover, // This makes the image fill the screen
+                      ),
+                    ),
                   ),
                   BackdropFilter(
                     filter: ImageFilter.blur(
